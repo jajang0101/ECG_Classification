@@ -68,45 +68,43 @@ model.to(device)
 
 predictions = torch.empty(list(y_test.size())[0], 4)
 with torch.no_grad():
+    instance_i = 0
     for inputs, labels in dataloader:
         inputs, labels = inputs.to(device), labels.to(device)
         outputs = model(inputs)
-        predictions = (outputs > 0.5).int()
-        #print(predictions)
-'''
-confusion = torch.zeros(4, 4)
-instance_i = 0
-for instance in enumerate(predictions):
-    for i in range(4):
-        confusion[i] = y_test[instance_i][i] + instance[i]
-    instance_i += 1
-instance_i = 0
-for instance in enumerate(predictions):
-    for i in range(4):
-        confusion[instance_i][i] = y_test[instance_i][i] + instance[i]
-    instance_i += 1 
+        predictions[instance_i] = (outputs > 0.5).int()
+        instance_i += 1
 
-print(confusion)
-scpdict = {
-    0: "MI",
-    1: "STTC",
-    2: "CD",
-    3: "HYP"
-}
 scpCodes = ["MI", "STTC", "CD", "HYP"]
+for diag in range(4):
+    confusion = torch.zeros(2, 2)
+    instance_i = 0
+    for instance in predictions:
+        if (instance[diag] == 0) and (y_test[instance_i][diag] == 0):
+            confusion[1][1] += 1
+        if (instance[diag] == 0) and (y_test[instance_i][diag] == 1):
+            confusion[0][1] += 1
+        if (instance[diag] == 1) and (y_test[instance_i][diag] == 0):
+            confusion[1][0] += 1
+        if (instance[diag] == 1) and (y_test[instance_i][diag] == 1):
+            confusion[0][0] += 1
+        instance_i += 1
 
-fig = plt.figure()
-ax = fig.add_subplot(111)
-cax = ax.matshow(confusion.numpy())
-fig.colorbar(cax)
+    print(confusion)
+    print("Accuracy:",((confusion[0][0] + confusion[1][1])/confusion.sum()) * 100, "%")
+    confusion = confusion/confusion.sum()
+    confusion_fig = plt.matshow(confusion)
+    for ix in range(2):
+        for iy in range(2):
+            plt.text(ix, iy, confusion[ix, iy], ha="center", va="center")
+    
+    plt.xticks([0, 1], ['Positive', 'Negative'])
+    plt.yticks([0, 1], ['Positive', 'Negative'])
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.title(scpCodes[diag])
+    plt.show()
+    
 
-# Set up axes
-ax.set_xticklabels([''] + scpCodes, rotation=90)
-ax.set_yticklabels([''] + scpCodes)
 
-# Force label at every tick
-ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
-ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
 
-plt.show()
-'''
